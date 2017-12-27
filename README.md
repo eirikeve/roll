@@ -4,7 +4,7 @@ Do you need this? Probably not! :-)
 Only written because I wanted to try making something in go.
 
 # Installation
-Place roll.go somewhere in gopath/srd, and run `go install`, and run using `roll [expression]` (assumes gopath/bin added to PATH)  
+Place roll.go somewhere in gopath/src, and run `go install`, and run using `roll [expression]` (assumes gopath/bin added to PATH)  
 Or, just place roll.go in any folder, and run `go build`, then `./roll [expression]` there.
 
 # Usage
