@@ -131,6 +131,9 @@ Creates a list of dice throws, and a list of constants.
 @return: list of constants, list of dice throws
 */
 func formatInput(a *string) ([]string, []string) {
+	// Insert space before each operator to make regexp read correctly
+	*a = strings.Replace(*a, "+", " +", -1)
+	*a = strings.Replace(*a, "-", " -", -1)
 	// Matches integers not part of a dice throw
 	intRegExp, _ := regexp.Compile("-?[^d0-9][0-9]+[^d0-9]|-?[^d0-9][0-9]+$")
 	// Matches dice throws
