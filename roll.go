@@ -1,3 +1,13 @@
+// roll implements command line dice rolling.
+//
+// It accepts the standard notation, i.e. 10d20 + 5, or 2d7 + 1d10 - 1 etc.,
+// and rejects arguments that contain other letters or have unseparated throws (like 3d33d3)
+// The calculation is done by separating the dice throws and constants (using regexp),
+// Computing the result of each throw using pRNG,
+// and summing the results.
+//
+// Written by Eirik Vesterkjær, dec 2017
+
 package main
 
 import (
@@ -14,34 +24,44 @@ import (
 func main() {
 	// Seed for rng
 	rand.Seed(int64(time.Now().Nanosecond()))
-	// Setup flag
+	// Check for -h flag, which prompts printHelpMessage()
 	helpFlagPtr := flag.Bool("h", false, "Help flag")
 	flag.Parse()
 	if *helpFlagPtr {
 		printHelpMessage()
 		return
 	}
-	// Read cmd line arguments
-	args := strings.Join(os.Args[1:], " ") // Roll arguments
+	// Read cmd line arguments and concatenate
+	args := strings.Join(os.Args[1:], " ")
 
+	// Check for validity of arguments, print error msg if not acceptable
 	if !isArgumentAcceptable(&args) {
-		fmt.Println("Unacceptable argument ", args)
-		fmt.Println("Use -h for help")
+		fmt.Println("Unacceptable argument ", args, ":")
+		if !isArgTermsSeparated(&args) {
+			fmt.Println("- Lacking separation between dice throws.")
+		}
+		if !isArgAcceptableRunes(&args) {
+			fmt.Println("- Non-accepted characters in input.")
+		}
+		fmt.Println("Use the -h flag for help")
 		return
 	}
+	// Separates dice throws and constants, while preserving negative signs
 	integerStrings, dicethrowStrings := formatInput(&args)
 	printInputConfirmation(integerStrings, dicethrowStrings)
-	fmt.Println()
+	// Throws dice, converts constants to int.
 	integers, dicethrows := getResults(integerStrings, dicethrowStrings)
 	printThrowResults(dicethrowStrings, dicethrows)
+	// Separate sums in order to display the sum of the constants (integers)
 	sumIntegers, sumThrows := sumResults(integers, dicethrows)
 	fmt.Println("Const:\t", sumIntegers)
 	fmt.Println("Sum: \t", sumIntegers+sumThrows)
 }
 
 /*
-Returns true if cmd line arguments are acceptable
-(only includes dice rolls), false else.
+Checks if cmd line arguments are acceptable (i.e. a dice throw cmd)
+@arg a: Ptr to concatenated cmd line argument
+@return: true if cmd line arguments are acceptable, else false
 */
 func isArgumentAcceptable(a *string) bool {
 	if isArgTermsSeparated(a) && isArgAcceptableRunes(a) {
@@ -53,7 +73,9 @@ func isArgumentAcceptable(a *string) bool {
 }
 
 /*
-Returns true if all runes (chars) are acceptable chars, false else.
+Checks if all characters in cmd line argument are either: 0-9, whitespace, d, +, -
+@arg a: Ptr to concatenated cmd line argument
+@return: true if all chars are acceptable, else false
 */
 func isArgAcceptableRunes(a *string) bool {
 	acceptable := []rune{' ', 'd', '+', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
@@ -73,9 +95,11 @@ func isArgAcceptableRunes(a *string) bool {
 }
 
 /*
-Returns true if all dice terms are separated, false else
-Uses regexp to do this.
-The regexp 3d33d3 and 3dd3, but not 3d3 3d3 or 3d3+3d3, for instance
+Checks is all dice terms are separated, using regexp.
+These are not separated: 	"3d33d3" and "3dd3"
+These are separated: 		"3d3 3d3" and "3d3+3d3"
+@arg a: Ptr to concatenated cmd line argument
+@return: true if all throws are separated, else false
 */
 func isArgTermsSeparated(a *string) bool {
 	r, _ := regexp.Compile("d[0-9]+d|dd")
@@ -84,7 +108,10 @@ func isArgTermsSeparated(a *string) bool {
 }
 
 /*
-Throws virtual dice
+Throws virtual dice using pRNG
+@arg numberOfDice: number of times the die is thrown
+@arg sides: Maximum value of the die. Assumes die values [1, sides]
+@return: sum of the throws
 */
 func throw(numberOfDice int, sides int) int {
 	if numberOfDice == 0 || sides == 0 {
@@ -97,9 +124,15 @@ func throw(numberOfDice int, sides int) int {
 	return total
 }
 
+/*
+Formats the input cmd line argument. Does this by matching terms using regexp.
+Creates a list of dice throws, and a list of constants.
+@arg a: Ptr to concatenated cmd line argument
+@return: list of constants, list of dice throws
+*/
 func formatInput(a *string) ([]string, []string) {
 	// Matches integers not part of a dice throw
-	intRegExp, _ := regexp.Compile("[^d0-9][0-9]+[^d0-9]|-?[^d0-9][0-9]+$")
+	intRegExp, _ := regexp.Compile("-?[^d0-9][0-9]+[^d0-9]|-?[^d0-9][0-9]+$")
 	// Matches dice throws
 	diceRegExp, _ := regexp.Compile("^[0-9]+d[0-9]+|[^0-9]+[0-9]+d[0-9]+")
 	integerStrings := intRegExp.FindAllString(*a, -1)
@@ -116,6 +149,13 @@ func formatInput(a *string) ([]string, []string) {
 	return integerStrings, dicethrowStrings
 }
 
+/*
+Given a dice throw input of type string, determines the
+number of dice to throw, and the number of sides on the dice, and
+throws the dice using throw(..)
+@arg dicethrow: String representing a dice throw. E.g. "3d5" or "-6d10"
+@return: result of the dice throw
+*/
 func getThrowFromString(dicethrow string) int {
 	var isNegative bool = false
 	var delimiterIndex int = 0
@@ -140,6 +180,14 @@ func getThrowFromString(dicethrow string) int {
 	return result
 }
 
+/*
+Takes the separated constants and dice throws string lists,
+and creates two new lists filled with the integer values of the constants,
+and the integer results of the dice throws.
+@arg integerStrings: Array of integers on string form
+@arg dicethrowStrings: Array of dice throws on string form
+@return list of integers as int, and list of dice throw result as int
+*/
 func getResults(integerStrings []string, dicethrowStrings []string) ([]int, []int) {
 	var integers []int
 	var dicethrows []int
@@ -155,6 +203,12 @@ func getResults(integerStrings []string, dicethrowStrings []string) ([]int, []in
 
 }
 
+/*
+Sums two lists and returns their individual sums
+@arg integers: list of integers
+@arg dicethrows: another list of integers
+@return int sum of intergers, int sum of dicethrows
+*/
 func sumResults(integers []int, dicethrows []int) (int, int) {
 	var sumIntegers int = 0
 	var sumThrows int = 0
@@ -167,13 +221,18 @@ func sumResults(integers []int, dicethrows []int) (int, int) {
 	return sumIntegers, sumThrows
 }
 
-func printInputConfirmation(integers []string, dice []string) {
+/*
+Prints the interpreted cmd line argument.
+@arg integerStrings: List of constant integers on string form
+@arg dicethrowStrings: List of dice throw string representations
+*/
+func printInputConfirmation(integerStrings []string, dicethrowStrings []string) {
 	print("Rolling: ")
-	for _, v := range dice {
+	for _, v := range dicethrowStrings {
 		fmt.Print(v)
 		fmt.Print(" ")
 	}
-	for i, v := range integers {
+	for i, v := range integerStrings {
 		if i != 0 {
 			fmt.Print(" ")
 		}
@@ -183,6 +242,11 @@ func printInputConfirmation(integers []string, dice []string) {
 	fmt.Println()
 }
 
+/*
+Prints the dice throws string representations and their result side by side
+@arg dicethrowStrings: List of dice throw string representations
+@arg dicethrows: List of dice throw results
+*/
 func printThrowResults(dicethrowStrings []string, dicethrows []int) {
 	fmt.Print("Throws:")
 	for i, s := range dicethrowStrings {
@@ -201,5 +265,7 @@ func printHelpMessage() {
 	fmt.Println("If there is no sign before a term, it is assumed to be positive.")
 	fmt.Println("Dice are written as adb, where we throw a dice with b sides. (Use lowercase d!)")
 	fmt.Println("Constants are any number")
-	fmt.Println("Example input: roll 3d20 + 5 - 1d4")
+	fmt.Println("Negative signs before a term can be used!")
+	fmt.Println("Example input: roll 3d20 + 5 - 1d4 - 6")
+
 }
