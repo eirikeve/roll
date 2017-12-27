@@ -3,6 +3,10 @@ Command line dice rolling.
 Do you need this? Probably not! :-)  
 Only written because I wanted to try making something in go.
 
+Lets you roll any number of any dice (d20, d10, d6, d5, etc.), in the terminal.  
+Also lets you add modifiers (+5, -10, etc.).
+
+
 # Installation
 Place roll.go somewhere in gopath/src, and run `go install`, and run using `roll [expression]` (assumes gopath/bin added to PATH)  
 Or, just place roll.go in any folder, and run `go build`, then `./roll [expression]` there.
