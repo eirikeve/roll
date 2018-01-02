@@ -15,7 +15,7 @@ Or, just place roll.go in any folder, and run `go build`, then `./roll [expressi
 * Input should consist of any number of terms.  
 * Terms can be either a constant or dice throw, and they are separated by + or -.  
 * If there is no sign before a term, it is assumed to be positive.  
-* Dice are written as adb, where we throw a dice with b sides. (Use lowercase d!)  
+* Dice are written as __adb__, where we throw __a__ dice with __b__ sides. (Use lowercase d!)  
 * Constants are any number  
 * Negative signs before a term can be used!  
 
